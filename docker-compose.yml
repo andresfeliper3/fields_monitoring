@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  localstack:
+    image: localstack/localstack
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - DATA_DIR=/tmp/localstack/data
+    volumes:
+      - "${PWD}/.localstack:/tmp/localstack"
+
+  myproject:
+    build: .
+    container_name: myproject
+    depends_on:
+      - localstack
+    environment:
+      - NASA_API_KEY=${NASA_API_KEY}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - LOCALSTACK_HOST=${LOCALSTACK_HOST}
+      - LOCALSTACK_S3_PORT=${LOCALSTACK_S3_PORT}
