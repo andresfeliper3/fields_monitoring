@@ -13,10 +13,10 @@ class ImagesService:
     def __init__(self, images_repository: ImagesRepository = Depends(ImagesRepositoryImpl)) -> None:
         self.images_repository = images_repository
 
-    def process_fields(self) -> bool:
+    async def load_images_from_nasa_api(self) -> bool:
         fields = self.images_repository.process_fields()
         if fields:
-            images = self.images_repository.get_images_from_nasa_api(fields)
+            images = await self.images_repository.get_images_from_nasa_api(fields)
             upload_status = self.images_repository.upload_to_s3(images)
             logger.info("Images processed and uploaded to S3")
             return upload_status
