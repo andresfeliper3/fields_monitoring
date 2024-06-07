@@ -29,20 +29,20 @@ class ImagesRepositoryImpl(ImagesRepository):
 
 
     def process_fields(self) -> Optional[List[Field]]:
-        csv_file: str = 'domain/fields.csv'
+        csv_file: str = env['CSV_FILEPATH']
 
         if not os.path.exists(csv_file):
             logger.error(f"Error: '{csv_file}' not found.")
             return None
 
         fields: List[Field] = []
-        date: str = '2018-01-01'
         with open(csv_file, 'r') as file:
             reader = csv.reader(file, delimiter=';')
             next(reader)  # skip header
             for row in reader:
                 field_id, lon, lat, dim = row
-                field = Field(field_id=field_id, lon=float(lon), lat=float(lat), dim=float(dim), date=date)
+                field = Field(field_id=field_id, lon=float(lon), lat=float(lat), dim=float(dim),
+                              date=env['SPECIFIED_DATE'])
                 fields.append(field)
                 logger.info(f"Processed field {field_id} with coordinates ({lon}, {lat})")
 

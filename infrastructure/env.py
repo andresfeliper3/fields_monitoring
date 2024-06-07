@@ -3,14 +3,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-NASA_API_KEY = os.environ.get('NASA_API_KEY')
-S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME')
-LOCALSTACK_HOST = os.environ.get('LOCALSTACK_HOST')
-LOCALSTACK_S3_PORT = os.environ.get('LOCALSTACK_S3_PORT')
 
 env = {
-    'NASA_API_KEY': NASA_API_KEY,
-    'S3_BUCKET_NAME': S3_BUCKET_NAME,
-    'LOCALSTACK_HOST': LOCALSTACK_HOST,
-    'LOCALSTACK_S3_PORT': LOCALSTACK_S3_PORT
+    'NASA_API_KEY': os.environ.get('NASA_API_KEY'),
+    'S3_BUCKET_NAME': os.environ.get('S3_BUCKET_NAME'),
+    'LOCALSTACK_HOST': os.environ.get('LOCALSTACK_HOST'),
+    'LOCALSTACK_S3_PORT': os.environ.get('LOCALSTACK_S3_PORT'),
+    'SPECIFIED_DATE': os.environ.get('SPECIFIED_DATE'),
+    'CSV_FILEpATH': os.environ.get('CSV_FILEPATH')
 }
