@@ -5,4 +5,10 @@ class ImagesService:
         self.images_repository = ImagesRepositoryImpl()
 
     def process_fields(self):
-        return self.images_repository.process_fields()
+        fields = self.images_repository.process_fields()
+        images = self.images_repository.get_images_from_nasa_api(fields)
+        result = self.images_repository.upload_to_s3(images)
+        return result
+
+    def list_images(self):
+        return self.images_repository.list_images_in_s3()
