@@ -9,9 +9,10 @@ import httpx
 
 from typing import List, Optional
 from infrastructure.env import env
-from infrastructure.utils.URLBuilder import  NasaApiUrlBuilder
+from infrastructure.utils.URLBuilder import NasaApiUrlBuilder
 from domain.repositories.images_repository import ImagesRepository
 from domain.entities.field import Field
+from domain.custom_exceptions import FieldProcessingError, ImageFetchingError, ImageDownloadingError, ImageUploadingError, ImageListingError
 
 logger = logging.getLogger(__name__)
 
@@ -31,13 +32,12 @@ class ImagesRepositoryImpl(ImagesRepository):
         self.s3_client.get_waiter('bucket_exists').wait(Bucket=self.bucket_name)
         logger.info("S3 client initialized and bucket created")
 
-
     def process_fields(self) -> Optional[List[Field]]:
         csv_file: str = env['CSV_FILEPATH']
 
         if not os.path.exists(csv_file):
             logger.error(f"Error: '{csv_file}' not found.")
-            return None
+            raise FieldProcessingError(f"Error: '{csv_file}' not found.")
 
         fields: List[Field] = []
         with open(csv_file, 'r') as file:
@@ -60,7 +60,7 @@ class ImagesRepositoryImpl(ImagesRepository):
                 images.append({'image_content': image_content, 'field': field})
                 logger.info(f"Image for field {field.field_id} downloaded from NASA API")
             except Exception as e:
-                raise Exception(f"There was an error downloading the image from NASA API: {e}")
+                raise ImageFetchingError(f"There was an error fetching images from NASA API: {e}")
         return images
 
     def download_image(self, lon: float, lat: float, date: str, dim: float) -> Optional[bytes]:
@@ -79,18 +79,18 @@ class ImagesRepositoryImpl(ImagesRepository):
             return response.content
         except requests.RequestException as e:
             logger.warning(f"Failed to download image for coordinates ({lon}, {lat}) on {date}: {e}")
-            return None
+            raise ImageDownloadingError(f"There was an error downloading the image from NASA API: {e}")
 
     def upload_to_s3(self, images: List[dict]) -> bool:
-        for image in images:
-            folder_path: str = f"{image['field'].field_id}/{image['field'].date}_imagery.png"
-            try:
+        try:
+            for image in images:
+                folder_path: str = f"{image['field'].field_id}/{image['field'].date}_imagery.png"
                 self.s3_client.put_object(Bucket=self.bucket_name, Key=folder_path, Body=image['image_content'])
                 logger.info(f"Uploaded {folder_path} to {self.bucket_name}")
-            except Exception as e:
-                logger.error(f"There was an error uploading the images to S3: {e}")
-                raise Exception(f"There was an error uploading the images to S3: {e}")
-        return True
+            return True
+        except Exception as e:
+            logger.error(f"There was an error uploading the images to S3: {e}")
+            raise ImageUploadingError(f"There was an error uploading the images to S3: {e}")
 
     def list_images_in_s3(self) -> Optional[List[str]]:
         try:
@@ -103,7 +103,7 @@ class ImagesRepositoryImpl(ImagesRepository):
             return images
         except Exception as e:
             logger.error(f"There was an error listing the images in S3: {e}")
-            raise Exception(f"There was an error listing the images in S3: {e}")
+            raise ImageListingError(f"There was an error listing the images in S3: {e}")
 
     def get_images_by_field_id(self, field_id: str) -> Optional[List[str]]:
         try:
@@ -116,7 +116,7 @@ class ImagesRepositoryImpl(ImagesRepository):
             return images
         except Exception as e:
             logger.error(f"There was an error listing the images for field ID {field_id} in S3: {e}")
-            raise Exception(f"There was an error listing the images for field ID {field_id} in S3: {e}")
+            raise ImageListingError(f"There was an error listing the images for field ID {field_id} in S3: {e}")
 
     def download_images_from_s3(self, image_keys: List[str]) -> List[dict]:
         images: List[dict] = []
@@ -127,5 +127,6 @@ class ImagesRepositoryImpl(ImagesRepository):
                 logger.info(f"Downloaded image {image_key} from S3")
             except Exception as e:
                 logger.error(f"There was an error downloading the image {image_key} from S3: {e}")
-                raise Exception(f"There was an error downloading the image {image_key} from S3: {e}")
+                raise ImageDownloadingError(f"There was an error downloading the image {image_key} from S3: {e}")
         return images
+
