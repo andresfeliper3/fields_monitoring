@@ -6,7 +6,7 @@ router = APIRouter()
 
 @router.get("/load-images")
 def load_images(images_service: ImagesService = Depends(ImagesService)):
-    result = images_service.process_fields()
+    result = images_service.load_images_from_nasa_api()
     if result:
         return {"status": "success", "message": "Images processed and uploaded successfully"}
     else:

@@ -27,26 +27,6 @@ class ImagesRepositoryImpl(ImagesRepository):
         time.sleep(5)
         logger.info("S3 client initialized and bucket created")
 
-    def download_image(self, lon: float, lat: float, date: str, dim: float) -> Optional[bytes]:
-        url = f"https://api.nasa.gov/planetary/earth/imagery/?lon={lon}&lat={lat}&date={date}&dim={dim}&api_key={env['NASA_API_KEY']}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            logger.info(f"Image downloaded for coordinates ({lon}, {lat}) on {date}")
-            return response.content
-        else:
-            logger.warning(f"Failed to download image for coordinates ({lon}, {lat}) on {date}")
-            return None
-
-    def upload_to_s3(self, images: List[dict]) -> bool:
-        for image in images:
-            folder_path: str = f"{image['field'].field_id}/{image['field'].date}_imagery.png"
-            try:
-                self.s3_client.put_object(Bucket=self.bucket_name, Key=folder_path, Body=image['image_content'])
-                logger.info(f"Uploaded {folder_path} to {self.bucket_name}")
-            except Exception as e:
-                logger.error(f"There was an error uploading the images to S3: {e}")
-                raise Exception(f"There was an error uploading the images to S3: {e}")
-        return True
 
     def process_fields(self) -> Optional[List[Field]]:
         csv_file: str = 'domain/fields.csv'
@@ -68,16 +48,38 @@ class ImagesRepositoryImpl(ImagesRepository):
 
         return fields
 
-    def get_images_from_nasa_api(self, fields: List[Field]) -> List[dict]:
+    async def get_images_from_nasa_api(self, fields: List[Field]) -> List[dict]:
         images: List[dict] = []
         for field in fields:
             try:
-                image_content: Optional[bytes] = self.download_image(field.lon, field.lat, field.date, field.dim)
+                image_content: Optional[bytes] = await self.download_image(field.lon, field.lat, field.date, field.dim)
                 images.append({'image_content': image_content, 'field': field})
                 logger.info(f"Image for field {field.field_id} downloaded from NASA API")
             except Exception as e:
                 raise Exception(f"There was an error downloading the image from NASA API: {e}")
         return images
+
+    async def download_image(self, lon: float, lat: float, date: str, dim: float) -> Optional[bytes]:
+        url = f"https://api.nasa.gov/planetary/earth/imagery/?lon={lon}&lat={lat}&date={date}&dim={dim}&api_key={env['NASA_API_KEY']}"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            if response.status_code == 200:
+                logger.info(f"Image downloaded for coordinates ({lon}, {lat}) on {date}")
+                return response.content
+            else:
+                logger.warning(f"Failed to download image for coordinates ({lon}, {lat}) on {date}")
+                return None
+
+    def upload_to_s3(self, images: List[dict]) -> bool:
+        for image in images:
+            folder_path: str = f"{image['field'].field_id}/{image['field'].date}_imagery.png"
+            try:
+                self.s3_client.put_object(Bucket=self.bucket_name, Key=folder_path, Body=image['image_content'])
+                logger.info(f"Uploaded {folder_path} to {self.bucket_name}")
+            except Exception as e:
+                logger.error(f"There was an error uploading the images to S3: {e}")
+                raise Exception(f"There was an error uploading the images to S3: {e}")
+        return True
 
     def list_images_in_s3(self) -> Optional[List[str]]:
         try:
