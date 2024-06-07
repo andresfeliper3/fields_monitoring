@@ -3,7 +3,7 @@ import csv
 import requests
 import boto3
 
-from common.env import env
+from infrastructure.env import env
 
 def download_image(lon, lat, date, dim):
     url = f"https://api.nasa.gov/planetary/earth/imagery/?lon={lon}&lat={lat}&date={date}&dim={dim}" \
