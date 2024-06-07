@@ -6,6 +6,8 @@ import boto3
 import botocore
 import time
 import logging
+import httpx
+
 from typing import List, Optional
 from infrastructure.env import env
 from infrastructure.utils.URLBuilder import  NasaApiUrlBuilder
@@ -27,7 +29,7 @@ class ImagesRepositoryImpl(ImagesRepository):
         )
         self.bucket_name: str = env['S3_BUCKET_NAME']
         self.s3_client.create_bucket(Bucket=self.bucket_name)
-        time.sleep(5)
+        self.s3_client.get_waiter('bucket_exists').wait(Bucket=self.bucket_name)
         logger.info("S3 client initialized and bucket created")
 
 
@@ -51,34 +53,34 @@ class ImagesRepositoryImpl(ImagesRepository):
 
         return fields
 
-    async def get_images_from_nasa_api(self, fields: List[Field]) -> List[dict]:
+    def get_images_from_nasa_api(self, fields: List[Field]) -> List[dict]:
         images: List[dict] = []
         for field in fields:
             try:
-                image_content: Optional[bytes] = await self.download_image(field.lon, field.lat, field.date, field.dim)
+                image_content: Optional[bytes] = self.download_image(field.lon, field.lat, field.date, field.dim)
                 images.append({'image_content': image_content, 'field': field})
                 logger.info(f"Image for field {field.field_id} downloaded from NASA API")
             except Exception as e:
                 raise Exception(f"There was an error downloading the image from NASA API: {e}")
         return images
 
-    async def download_image(self, lon: float, lat: float, date: str, dim: float) -> Optional[bytes]:
-        url = NasaApiUrlBuilder(self.ENDPOINT_URL)\
-            .set_lon(lon)\
-            .set_lat(lat)\
-            .set_date(date)\
-            .set_dim(dim)\
-            .set_api_key(self.API_KEY)\
+    def download_image(self, lon: float, lat: float, date: str, dim: float) -> Optional[bytes]:
+        url = NasaApiUrlBuilder(self.ENDPOINT_URL) \
+            .set_lon(lon) \
+            .set_lat(lat) \
+            .set_date(date) \
+            .set_dim(dim) \
+            .set_api_key(self.API_KEY) \
             .build()
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url)
-            if response.status_code == 200:
-                logger.info(f"Image downloaded for coordinates ({lon}, {lat}) on {date}")
-                return response.content
-            else:
-                logger.warning(f"Failed to download image for coordinates ({lon}, {lat}) on {date}")
-                return None
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            logger.info(f"Image downloaded for coordinates ({lon}, {lat}) on {date}")
+            return response.content
+        except requests.RequestException as e:
+            logger.warning(f"Failed to download image for coordinates ({lon}, {lat}) on {date}: {e}")
+            return None
 
     def upload_to_s3(self, images: List[dict]) -> bool:
         for image in images:

@@ -12,16 +12,31 @@ class ImagesService:
     def __init__(self, images_repository: ImagesRepository = Depends(ImagesRepositoryImpl)) -> None:
         self.images_repository: ImagesRepository = images_repository
 
-    async def load_images_from_nasa_api(self) -> bool:
-        fields: Optional[List[Field]] = self.images_repository.process_fields()
-        if fields:
-            images: List[dict] = await self.images_repository.get_images_from_nasa_api(fields)
+
+    def _process_fields_from_file(self):
+        try:
+            fields: Optional[List[Field]] = self.images_repository.process_fields()
+            return fields
+        except Exception as e:
+            raise Exception(f"There was an error processing the fields: {e}")
+
+    def _fetch_images_from_nasa_api(self) -> List[dict]:
+        try:
+            fields: Optional[List[Field]] = self._process_fields_from_file()
+            images: List[dict] = self.images_repository.get_images_from_nasa_api(fields)
+            logger.debug(images)
+            return images
+        except Exception as e:
+            raise Exception(f"There was an error fetching images from NASA API: {e}")
+
+    def load_images_from_nasa_api(self) -> bool:
+        try:
+            images: List[dict] =  self._fetch_images_from_nasa_api()
             upload_status: bool = self.images_repository.upload_to_s3(images)
-            logger.info("Images processed and uploaded to S3")
+            logger.info("Images processed and uploaded")
             return upload_status
-        else:
-            logger.warning("No fields processed")
-            return False
+        except Exception as e:
+            raise Exception(f"There was an error loading images: {e}")
 
     def list_images(self) -> Optional[List[str]]:
         return self.images_repository.list_images_in_s3()

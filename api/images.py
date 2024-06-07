@@ -6,11 +6,12 @@ router = APIRouter()
 
 @router.get("/load-images")
 def load_images(images_service: ImagesService = Depends(ImagesService)):
-    result = images_service.load_images_from_nasa_api()
-    if result:
-        return {"status": "success", "message": "Images processed and uploaded successfully"}
-    else:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Failed to fetch images")
+    try:
+        result = images_service.load_images_from_nasa_api()
+        if result:
+            return {"status": "success", "message": "Images processed and uploaded successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.get("/images")
 def list_images(images_service: ImagesService = Depends(ImagesService)):
