@@ -1,4 +1,3 @@
-# images_repository_impl.py
 import os
 import csv
 import requests
