@@ -8,9 +8,9 @@ services:
       - "4566:4566"
     environment:
       - SERVICES=s3
-      - DATA_DIR=/tmp/localstack/data
-    volumes:
-      - "${PWD}/.localstack:/tmp/localstack"
+      - PERSISTENCE=/tmp/localstack/state
+    networks:
+      - mynetwork
 
   myproject:
     build: .
@@ -20,5 +20,13 @@ services:
     environment:
       - NASA_API_KEY=${NASA_API_KEY}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
-      - LOCALSTACK_HOST=${LOCALSTACK_HOST}
-      - LOCALSTACK_S3_PORT=${LOCALSTACK_S3_PORT}
+      - LOCALSTACK_HOST=localstack
+      - LOCALSTACK_S3_PORT=4566
+    ports:
+      - "8001:8000"
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
+    driver: bridge
