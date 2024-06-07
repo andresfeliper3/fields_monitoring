@@ -29,7 +29,7 @@ class ImagesRepositoryImpl(ImagesRepository):
 
     def upload_to_s3(self, images):
         for image in images:
-            folder_path = f"{image['field'].field_id}/{image['field '].date}_imagery.png"
+            folder_path = f"{image['field'].field_id}/{image['field'].date}_imagery.png"
             try:
                 self.s3_client.put_object(Bucket=self.bucket_name, Key=folder_path, Body=image['image_content'])
                 print(f"Uploaded {folder_path} to {self.bucket_name}")
@@ -76,3 +76,24 @@ class ImagesRepositoryImpl(ImagesRepository):
             return images
         except Exception as e:
             raise Exception(f"There was an error listing the images in S3: {e}")
+
+    def get_images_by_field_id(self, field_id):
+        try:
+            response = self.s3_client.list_objects_v2(Bucket=self.bucket_name, Prefix=f"{field_id}/")
+            images = []
+            if 'Contents' in response:
+                for obj in response['Contents']:
+                    images.append(obj['Key'])
+            return images
+        except Exception as e:
+            raise Exception(f"There was an error listing the images for field ID {field_id} in S3: {e}")
+
+    def download_images_from_s3(self, image_keys):
+        images = []
+        for image_key in image_keys:
+            try:
+                response = self.s3_client.get_object(Bucket=self.bucket_name, Key=image_key)
+                images.append({'key': image_key, 'content': response['Body'].read()})
+            except Exception as e:
+                raise Exception(f"There was an error downloading the image {image_key} from S3: {e}")
+        return images
