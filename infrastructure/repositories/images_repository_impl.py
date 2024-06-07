@@ -8,6 +8,7 @@ import time
 import logging
 from typing import List, Optional
 from infrastructure.env import env
+from infrastructure.utils.URLBuilder import  NasaApiUrlBuilder
 from domain.repositories.images_repository import ImagesRepository
 from domain.entities.field import Field
 
@@ -15,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 class ImagesRepositoryImpl(ImagesRepository):
     def __init__(self) -> None:
+        self.ENDPOINT_URL = env['ENDPOINT_URL']
+        self.API_KEY = env['NASA_API_KEY']
         self.s3_client = boto3.client(
             "s3",
             endpoint_url=f"{env['LOCALSTACK_HOST']}:{env['LOCALSTACK_S3_PORT']}",
@@ -60,7 +63,14 @@ class ImagesRepositoryImpl(ImagesRepository):
         return images
 
     async def download_image(self, lon: float, lat: float, date: str, dim: float) -> Optional[bytes]:
-        url = f"https://api.nasa.gov/planetary/earth/imagery/?lon={lon}&lat={lat}&date={date}&dim={dim}&api_key={env['NASA_API_KEY']}"
+        url = NasaApiUrlBuilder(self.ENDPOINT_URL)\
+            .set_lon(lon)\
+            .set_lat(lat)\
+            .set_date(date)\
+            .set_dim(dim)\
+            .set_api_key(self.API_KEY)\
+            .build()
+
         async with httpx.AsyncClient() as client:
             response = await client.get(url)
             if response.status_code == 200:
